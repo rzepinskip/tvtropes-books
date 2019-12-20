@@ -37,4 +37,3 @@ def test_nested_list():
     )
     tree = etree.XML(example[0])
     parse(tree)
-
