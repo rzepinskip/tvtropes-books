@@ -1,9 +1,10 @@
 from tvtropes.parser import SpoilerParser
 import os
 import bz2
-from lxml import html
-from tvtropes.scraper import TVTropesScraper
+from lxml import html, etree
 import base64
+import logging
+import json
 
 dir = "data/scraper/cache/20190502"
 
@@ -15,7 +16,7 @@ def _build_encoded_url(url):
 
 def decode_url(file_name):
     base = file_name.replace(".html.bz2", "")
-    decoded = base64.b64decode(base)
+    decoded = base64.b64decode(base).decode("utf-8")
     return decoded
 
 
@@ -28,39 +29,34 @@ def read(file_path):
 
 LINK_SELECTOR_INSIDE_ARTICLE = "#main-article > ul > li"
 
-
-# https://medium.com/contentsquare-engineering-blog/multithreading-vs-multiprocessing-in-python-ece023ad55a
-
 subset = os.listdir(dir)
-tagged_sentences = list()
 parser = SpoilerParser()
 expected_spoiler = 0
 
-for page_file in subset[2:3]:
+results = list()
+for idx, page_file in enumerate(subset[:10]):
+    # print(f"{idx+1}/{len(subset)}")
     content = read(os.path.join(dir, page_file))
-    print(decode_url(page_file))
+    # print(decode_url(page_file))
     tree = html.fromstring(content)
     listing = [
         html.tostring(element)
         for element in tree.cssselect(LINK_SELECTOR_INSIDE_ARTICLE)
     ]
     expected_spoiler += len(tree.cssselect("#main-article > ul > li .spoiler"))
-    # print(content)
-    for entry in listing[:]:
-        tree = html.fromstring(entry)
-        tagged_sentences += parser.parse(tree)
+    tagged_sentences = list()
+    for entry in listing:
+        tagged_sentences += [parser.parse(entry.decode("utf-8"))]
+    results += [(decode_url(page_file), tagged_sentences)]
 
 spoilers = [
     (tag, sentence)
-    for review in tagged_sentences
+    for _, reviews in results
+    for review in reviews
     for tag, sentence in review
-    if str(tag) == "TAG.SPOILER"
+    if tag
 ]
 len(spoilers)
-spoilers
 
-# Blood Knight: The book contains three of these: Greven il-Vec, as it is said at one point that he only smiles when he is about to kill someone. Like all Keldon warriors, Maraxus of Keld is one of these. Crovax becomes one of these in the final chapter.
-#  Greven il-Vec, as it is said at one point that he only smiles when he is about to kill someone.
-#  Like all Keldon warriors, Maraxus of Keld is one of these.
-#  Crovax becomes one of these in the final chapter.
-
+# json.dumps(results)
+# results
