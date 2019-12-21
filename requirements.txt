@@ -41,7 +41,6 @@ parso==0.5.2
 pathspec==0.6.0
 pexpect==4.7.0
 pickleshare==0.7.5
-pkg-resources==0.0.0
 pluggy==0.13.1
 prometheus-client==0.7.1
 prompt-toolkit==2.0.10
@@ -66,7 +65,6 @@ testpath==0.4.4
 toml==0.10.0
 tornado==6.0.3
 traitlets==4.3.3
--e git+https://github.com/rzepinskip/tv-tropes.git@50b910f220dddb21c8ab06ab774ac364cd604d97#egg=tvtropes
 typed-ast==1.4.0
 typing-extensions==3.7.4.1
 urllib3==1.25.7
