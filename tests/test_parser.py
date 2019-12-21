@@ -86,7 +86,7 @@ import pytest
             [True, True, False],
         ),
         (
-            """<li><a class="twikilink" href="https://tvtropes.org/pmwiki/pmwiki.php/Main/StuffedIntoTheFridge" title="https://tvtropes.org/pmwiki/pmwiki.php/Main/StuffedIntoTheFridge">Stuffed into the Fridge</a>: The between chapters scene right before Mirri's Tale all but says outright that <span class="spoiler" title="you can set spoilers visible by default on your profile">Mirri had to die in order for Gerrard to "shed" her and become a hero</span>, so not only playing this trope as straight as possible but even <em>referencing it in-universe</em>.</li><li> 
+            """<li><a class="twikilink" href="https://tvtropes.org/pmwiki/pmwiki.php/Main/StuffedIntoTheFridge" title="https://tvtropes.org/pmwiki/pmwiki.php/Main/StuffedIntoTheFridge">Stuffed into the Fridge</a>: The between chapters scene right before Mirri's Tale all but says outright that <span class="spoiler" title="you can set spoilers visible by default on your profile">Mirri had to die in order for Gerrard to "shed" her and become a hero</span>, so not only playing this trope as straight as possible but even <em>referencing it in-universe</em>.</li>
         """,
             [True],
         ),
@@ -97,13 +97,23 @@ import pytest
         ),
         (
             """<li> <a class="twikilink" href="https://tvtropes.org/pmwiki/pmwiki.php/Main/SoBeautifulItsACurse" title="https://tvtropes.org/pmwiki/pmwiki.php/Main/SoBeautifulItsACurse">So Beautiful, It's a Curse</a>: one cause for Emer's ordeal.</li>
-            """,
+        """,
+            [False],
+        ),
+        (
+            """<li><a class="twikilink" href="https://tvtropes.org/pmwiki/pmwiki.php/Main/BadBoss" title="https://tvtropes.org/pmwiki/pmwiki.php/Main/BadBoss">Bad Boss</a>: Volrath is one to Greven. As this card-only quote puts it:<div class="indent"> <strong>Volrath:</strong> There's very little that escapes me, Greven. And you will escape very little if you fail.</div></li>
+        """,
+            [False, False],
+        ),
+        (
+            """<li> <a class="twikilink" href="https://tvtropes.org/pmwiki/pmwiki.php/Main/AristocratsAreEvil" title="https://tvtropes.org/pmwiki/pmwiki.php/Main/AristocratsAreEvil">Aristocrats Are Evil</a>: Subverted with Crovax, at least initially...</li>
+        """,
             [False],
         ),
     ],
 )
 def test_examples(raw_example, expected):
-    sentences = SpoilerParser().parse(raw_example)
+    _, sentences = SpoilerParser().parse(raw_example)
     results = [tag for tag, _ in sentences]
     if results != expected:
         raw_example = raw_example.replace("\n", "")

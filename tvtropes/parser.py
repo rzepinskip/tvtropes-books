@@ -1,8 +1,13 @@
+import re
+import os
+import base64
+import bz2
+
 from enum import Enum
 from lxml import html, etree
 from lxml.html.clean import Cleaner
-from typing import List, Tuple
-import re
+from typing import List, Tuple, Dict, Any
+from tvtropes.base_script import BaseScript
 
 
 class SpoilerStatus(Enum):
@@ -11,23 +16,57 @@ class SpoilerStatus(Enum):
     CLOSED = 4
 
 
-class SpoilerParser:
+class SpoilerParser(BaseScript):
+    DEFAULT_ENCODING = "utf-8"
+
     def __init__(self):
+        BaseScript.__init__(self, dict())
         self.before_cleaner = Cleaner(
-            allow_tags=["span", "div"], remove_unknown_tags=False
+            allow_tags=["span", "div"], remove_unknown_tags=False, kill_tags=[]
         )
 
-    def _clean(self, raw_data):
+    def parse_dir(self, dir: str) -> List[Dict[str, Any]]:
+        def decode_url(file_name):
+            print(file_name)
+            base = file_name.replace(".html.bz2", "")
+            decoded = base64.b64decode(base).decode(self.DEFAULT_ENCODING)
+            return decoded
+
+        def read(file_path):
+            with open(file_path, "rb") as file:
+                content = file.read()
+            content = bz2.decompress(content)
+            return content.decode(self.DEFAULT_ENCODING, errors="ignore")
+
+        subset = os.listdir(dir)
+        expected_spoiler = 0
+
+        results: List[Dict[str, Any]] = list()
+        for idx, page_file in enumerate(subset[:]):
+            url = decode_url(page_file)
+            self._track_message(f"{idx+1}/{len(subset)} - {url}")
+
+            content = read(os.path.join(dir, page_file))
+            tree = html.fromstring(content)
+            listing = [
+                html.tostring(element, encoding="unicode")
+                for element in tree.cssselect("#main-article > ul > li")
+            ]
+            for entry in listing:
+                trope, sentences = self.parse(entry)
+                results += [{"page": url, "trope": trope, "sentences": sentences,}]
+
+        self._finish_and_summary()
+        return results
+
+    def parse(self, raw_data: str) -> Tuple[str, List[Tuple[bool, str]]]:
+        raw_data = Cleaner(kill_tags=["div"]).clean_html(raw_data)
         cleaned_data = self.before_cleaner.clean_html(f"<div>{raw_data}</div>")
         colon_idx = cleaned_data.find(":")
+        trope = cleaned_data[:colon_idx]
         cleaned_data = cleaned_data[colon_idx + 1 :]
-        data = cleaned_data.replace("</div>", "").strip()
+        data = cleaned_data.replace("</div>", "").strip().replace("...", ".")
         data = data.replace(".</span>", "</span>.")
-
-        return data
-
-    def parse(self, raw_data: str) -> List[Tuple[bool, str]]:
-        data = self._clean(raw_data)
 
         tagged_sentences = list()
         i, start = 0, 0
@@ -60,4 +99,8 @@ class SpoilerParser:
             str_repr = etree.tostring(element, method="text", encoding="unicode")
             return re.sub("\s\s+", " ", str_repr).strip()
 
-        return [(tag, clean_all(sentence)) for tag, sentence in tagged_sentences]
+        return (
+            clean_all(trope),
+            [(tag, clean_all(sentence)) for tag, sentence in tagged_sentences],
+        )
+
