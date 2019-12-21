@@ -2,6 +2,11 @@ from tvtropes.parser import SpoilerParser
 import pytest
 
 
+@pytest.fixture(scope="session")
+def parser():
+    return SpoilerParser()
+
+
 @pytest.mark.parametrize(
     "raw_example, expected",
     [
@@ -112,8 +117,8 @@ import pytest
         ),
     ],
 )
-def test_examples(raw_example, expected):
-    _, sentences = SpoilerParser().parse(raw_example)
+def test_examples(parser, raw_example, expected):
+    _, sentences = parser.parse(raw_example)
     results = [tag for tag, _ in sentences]
     if results != expected:
         raw_example = raw_example.replace("\n", "")

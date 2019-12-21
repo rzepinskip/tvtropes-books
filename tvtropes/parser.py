@@ -1,4 +1,3 @@
-import re
 import os
 import base64
 import bz2
@@ -8,6 +7,8 @@ from lxml import html, etree
 from lxml.html.clean import Cleaner
 from typing import List, Tuple, Dict, Any
 from tvtropes.base_script import BaseScript
+import spacy
+from spacy.lang.en import English
 
 
 class SpoilerStatus(Enum):
@@ -24,10 +25,11 @@ class SpoilerParser(BaseScript):
         self.before_cleaner = Cleaner(
             allow_tags=["span", "div"], remove_unknown_tags=False, kill_tags=[]
         )
+        self._nlp = English()
+        self._nlp.add_pipe(self._nlp.create_pipe("sentencizer"))
 
     def parse_dir(self, dir: str) -> List[Dict[str, Any]]:
         def decode_url(file_name):
-            print(file_name)
             base = file_name.replace(".html.bz2", "")
             decoded = base64.b64decode(base).decode(self.DEFAULT_ENCODING)
             return decoded
@@ -65,8 +67,17 @@ class SpoilerParser(BaseScript):
         colon_idx = cleaned_data.find(":")
         trope = cleaned_data[:colon_idx]
         cleaned_data = cleaned_data[colon_idx + 1 :]
-        data = cleaned_data.replace("</div>", "").strip().replace("...", ".")
-        data = data.replace(".</span>", "</span>.")
+        data = (
+            cleaned_data.replace("</div>", "")
+            .replace("...", ".")
+            .replace("◊", "")
+            .replace(".</span>", "</span>.")
+        )
+
+        doc = self._nlp(data)
+        sentences = [sent.string.strip() for sent in doc.sents]
+        sentences = [x for x in sentences if len(x) > 0]
+        data = "|".join(sentences)
 
         tagged_sentences = list()
         i, start = 0, 0
@@ -81,7 +92,7 @@ class SpoilerParser(BaseScript):
                     status = SpoilerStatus.OPEN
                 continue
 
-            if data[i] in [".", "?", "!"] or i == len(data) - 1:
+            if data[i] == "|" or i == len(data) - 1:
                 if status is SpoilerStatus.CLOSED:
                     tag = False
                 elif status is SpoilerStatus.OPEN:
@@ -97,7 +108,7 @@ class SpoilerParser(BaseScript):
         def clean_all(sentence):
             element = html.fromstring(sentence)
             str_repr = etree.tostring(element, method="text", encoding="unicode")
-            return re.sub("\s\s+", " ", str_repr).strip()
+            return " ".join(str_repr.split()).strip()
 
         return (
             clean_all(trope),
