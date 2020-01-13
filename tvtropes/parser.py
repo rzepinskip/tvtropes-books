@@ -9,6 +9,7 @@ from typing import List, Tuple, Dict, Any
 from tvtropes.base_script import BaseScript
 import spacy
 from spacy.lang.en import English
+import en_core_web_sm
 
 
 class SpoilerStatus(Enum):
@@ -25,7 +26,7 @@ class SpoilerParser(BaseScript):
         self.before_cleaner = Cleaner(
             allow_tags=["span", "div"], remove_unknown_tags=False, kill_tags=[]
         )
-        self._nlp = English()
+        self._nlp = en_core_web_sm.load(disable=["parser", "ner"])
         self._nlp.add_pipe(self._nlp.create_pipe("sentencizer"))
 
     def parse_dir(self, dir: str) -> List[Dict[str, Any]]:
@@ -61,6 +62,20 @@ class SpoilerParser(BaseScript):
         self._finish_and_summary()
         return results
 
+    def _split_into_sentences(self, text: str):
+        doc = self._nlp(text)
+        output = []
+        for sentence in doc.sents:
+            if len(sentence) == 0:
+                continue
+
+            for token in sentence:
+                if token.pos_ == "VERB" or token.pos_ == "AUX":
+                    output.append(sentence.string.strip())
+                    break
+
+        return output
+
     def parse(self, raw_data: str) -> Tuple[str, List[Tuple[bool, str]]]:
         raw_data = Cleaner(kill_tags=["div"]).clean_html(raw_data)
         cleaned_data = self.before_cleaner.clean_html(f"<div>{raw_data}</div>")
@@ -74,9 +89,7 @@ class SpoilerParser(BaseScript):
             .replace(".</span>", "</span>.")
         )
 
-        doc = self._nlp(data)
-        sentences = [sent.string.strip() for sent in doc.sents]
-        sentences = [x for x in sentences if len(x) > 0]
+        sentences = self._split_into_sentences(data)
         data = "|".join(sentences)
 
         tagged_sentences = list()

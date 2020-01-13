@@ -73,7 +73,7 @@ def parser():
         (
             """<li><a class="twikilink" href="https://tvtropes.org/pmwiki/pmwiki.php/Main/LoveTriangle" title="https://tvtropes.org/pmwiki/pmwiki.php/Main/LoveTriangle">Love Triangle</a>: Type 4. <span class="spoiler" title="you can set spoilers visible by default on your profile"> Mirri</span> LOVES Gerrard but he likes her as a friend. <span class="spoiler" title="you can set spoilers visible by default on your profile"> Hanna</span> likes Gerrard, a feeling which is <span class="spoiler" title="you can set spoilers visible by default on your profile"> reciprocated.</span> What makes it all worse is that Gerrard doesn't know <span class="spoiler" title="you can set spoilers visible by default on your profile"> Mirri</span> LOVES him (he learns it in a dream state, but forgets it immediately after).
         """,
-            [False, True, True, True],
+            [True, True, True],
         ),
         (
             """<li><a class="twikilink" href="https://tvtropes.org/pmwiki/pmwiki.php/Main/SeriesContinuityError" title="https://tvtropes.org/pmwiki/pmwiki.php/Main/SeriesContinuityError">Series Continuity Error</a>: Hanna's mother is briefly mentioned as being dead, however we find out in <em><a class="twikilink" href="https://tvtropes.org/pmwiki/pmwiki.php/Literature/MasqueradeCycle" title="https://tvtropes.org/pmwiki/pmwiki.php/Literature/MasqueradeCycle">Prophecy</a></em> that she's quite alive. <span class="spoiler" title="you can set spoilers visible by default on your profile">Unfortunately, she dies in the same book</span>.<ul><li> During one of the interludes Tolaria is mentioned to still exist, however in the <a class="createlink" href="https://tvtropes.org/pmwiki/pmwiki.php/Main/InvasionCycle" title="https://tvtropes.org/pmwiki/pmwiki.php/Main/InvasionCycle">Invasion Cycle</a> Barrin destroyed the island with the <a class="urllink" href="http://gatherer.wizards.com/Pages/Card/Details.aspx?printed=true&amp;multiverseid=23098">Oblierate<img src="https://static.tvtropes.org/pmwiki/pub/external_link.gif" style="border:none;" width="12" height="12"></a> spell.</li>
@@ -103,7 +103,7 @@ def parser():
         (
             """<li> <a class="twikilink" href="https://tvtropes.org/pmwiki/pmwiki.php/Main/SoBeautifulItsACurse" title="https://tvtropes.org/pmwiki/pmwiki.php/Main/SoBeautifulItsACurse">So Beautiful, It's a Curse</a>: one cause for Emer's ordeal.</li>
         """,
-            [False],
+            [],
         ),
         (
             """<li><a class="twikilink" href="https://tvtropes.org/pmwiki/pmwiki.php/Main/BadBoss" title="https://tvtropes.org/pmwiki/pmwiki.php/Main/BadBoss">Bad Boss</a>: Volrath is one to Greven. As this card-only quote puts it:<div class="indent"> <strong>Volrath:</strong> There's very little that escapes me, Greven. And you will escape very little if you fail.</div></li>
@@ -117,7 +117,7 @@ def parser():
         ),
     ],
 )
-def test_examples(parser, raw_example, expected):
+def test_cleaning(parser, raw_example, expected):
     _, sentences = parser.parse(raw_example)
     results = [tag for tag, _ in sentences]
     if results != expected:
@@ -131,3 +131,17 @@ def test_examples(parser, raw_example, expected):
             else:
                 print(f"NORMAL: {sentence}")
     assert results == expected
+
+
+@pytest.mark.parametrize(
+    "example, expected",
+    [
+        ("He killed her. Eddie was a hero.", ["He killed her.", "Eddie was a hero."]),
+        ("Cat. There was no help.", ["There was no help."]),
+        ("Eddie. Maggie.", []),
+        ("Dies", []),
+    ],
+)
+def test_sentences_split(parser, example, expected):
+    sentences = parser._split_into_sentences(example)
+    assert sentences == expected
