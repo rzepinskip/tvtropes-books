@@ -30,20 +30,20 @@ class SpoilerParser(BaseScript):
         self._nlp = en_core_web_sm.load(disable=["parser", "ner"])
         self._nlp.add_pipe(self._nlp.create_pipe("sentencizer"))
 
+    def decode_url(self, file_name):
+        base = os.path.basename(file_name).replace(".html.bz2", "")
+        decoded = base64.b64decode(base).decode(self.DEFAULT_ENCODING)
+        return decoded
+
+    def read(self, file_path):
+        with open(file_path, "rb") as file:
+            content = file.read()
+        content = bz2.decompress(content)
+        return content.decode(self.DEFAULT_ENCODING, errors="ignore")
+
     def parse_file(self, page_file: str):
-        def decode_url(file_name):
-            base = os.path.basename(file_name).replace(".html.bz2", "")
-            decoded = base64.b64decode(base).decode(self.DEFAULT_ENCODING)
-            return decoded
-
-        def read(file_path):
-            with open(file_path, "rb") as file:
-                content = file.read()
-            content = bz2.decompress(content)
-            return content.decode(self.DEFAULT_ENCODING, errors="ignore")
-
-        url = decode_url(page_file)
-        content = read(page_file)
+        url = self.decode_url(page_file)
+        content = self.read(page_file)
         tree = html.fromstring(content)
         listing = [
             html.tostring(element, encoding="unicode")
@@ -73,7 +73,12 @@ class SpoilerParser(BaseScript):
 
         for idx, page_file in enumerate(listing[:]):
             self._track_message(f"{idx+1}/{len(listing)}")
-            results += self.parse_file(page_file)
+            try:
+                results += self.parse_file(page_file)
+            except Exception as e:
+                self._track_error(
+                    f"Error for file: {page_file} ({self.decode_url(page_file)}):\n{getattr(e, 'message', repr(e))}"
+                )
 
         self._finish_and_summary()
         return results
