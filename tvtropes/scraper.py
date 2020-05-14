@@ -7,7 +7,6 @@ from collections import OrderedDict
 from time import sleep
 
 import requests
-
 from lxml import html
 
 from .base_script import BaseScript
@@ -66,7 +65,6 @@ class TVTropesScraper(BaseScript):
     def run(self):
         self._extract_book_ids()
         self._extract_tropes()
-        self._write_result()
         self._finish_and_summary()
 
     def _extract_book_ids(self):
@@ -167,25 +165,12 @@ class TVTropesScraper(BaseScript):
 
     def _build_encoded_url(self, url):
         encoded_url = (
-            base64.b64encode(url.encode(self.DEFAULT_ENCODING)).decode(
+            base64.urlsafe_b64encode(url.encode(self.DEFAULT_ENCODING)).decode(
                 self.DEFAULT_ENCODING
             )
             + self.EXTENSION
         )
-        return encoded_url.replace("/", "_")
+        return encoded_url
 
     def _wait_between_calls_to_avoid_attacking(self):
         sleep(self.WAIT_TIME_BETWEEN_CALLS_IN_SECONDS)
-
-    def _write_result(self):
-        target_file_name = self.TARGET_RESULT_FILE_TEMPLATE.format(self.session)
-        file_path = os.path.join(self.directory_name, self.session, target_file_name)
-        self._info(f"Saving tropes by book into {file_path}")
-        content = json.dumps(self.tropes_by_book, indent=2, sort_keys=True)
-        self.byte_content = content.encode(self.DEFAULT_ENCODING)
-        self._write_file(self.byte_content, file_path)
-
-        self._add_to_summary("uncompressed_generated_file_path", file_path)
-        self._add_to_summary(
-            "uncompressed_generated_file_size_bytes", len(self.byte_content)
-        )

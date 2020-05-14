@@ -32,7 +32,7 @@ class SpoilerParser(BaseScript):
 
     def decode_url(self, file_name):
         base = os.path.basename(file_name).replace(".html.bz2", "")
-        decoded = base64.b64decode(base).decode(self.DEFAULT_ENCODING)
+        decoded = base64.urlsafe_b64decode(base).decode(self.DEFAULT_ENCODING)
         return decoded
 
     def read(self, file_path):
@@ -71,13 +71,15 @@ class SpoilerParser(BaseScript):
         ]
         results: List[Dict[str, Any]] = list()
 
-        for idx, page_file in enumerate(listing[:]):
-            self._track_message(f"{idx+1}/{len(listing)}")
+        for idx, page_file in enumerate(listing):
             try:
+                self._track_message(
+                    f"{idx+1}/{len(listing)} - {self.decode_url(page_file)}"
+                )
                 results += self.parse_file(page_file)
             except Exception as e:
                 self._track_error(
-                    f"Error for file: {page_file} ({self.decode_url(page_file)}):\n{getattr(e, 'message', repr(e))}"
+                    f"Error for file: {page_file}:\n{getattr(e, 'message', repr(e))}"
                 )
 
         self._finish_and_summary()
