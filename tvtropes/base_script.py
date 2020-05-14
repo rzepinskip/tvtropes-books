@@ -54,9 +54,6 @@ class BaseScript(object):
 
         logging.getLogger("").addHandler(file_logger)
 
-    def _step(self, message):
-        self._track_step(message)
-
     def _track_error(self, message):
         self._logger.error(message)
 

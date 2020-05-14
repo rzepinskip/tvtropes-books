@@ -1,15 +1,16 @@
-import os
 import base64
 import bz2
-
+import os
 from enum import Enum
-from lxml import html, etree
-from lxml.html.clean import Cleaner
-from typing import List, Tuple, Dict, Any
-from tvtropes.base_script import BaseScript
-import spacy
-from spacy.lang.en import English
+from typing import Any, Dict, List, Tuple
+
 import en_core_web_sm
+import spacy
+from lxml import etree, html
+from lxml.html.clean import Cleaner
+from spacy.lang.en import English
+
+from tvtropes.base_script import BaseScript
 
 
 class SpoilerStatus(Enum):
@@ -29,9 +30,9 @@ class SpoilerParser(BaseScript):
         self._nlp = en_core_web_sm.load(disable=["parser", "ner"])
         self._nlp.add_pipe(self._nlp.create_pipe("sentencizer"))
 
-    def parse_dir(self, dir: str) -> List[Dict[str, Any]]:
+    def parse_file(self, page_file: str):
         def decode_url(file_name):
-            base = file_name.replace(".html.bz2", "")
+            base = os.path.basename(file_name).replace(".html.bz2", "")
             decoded = base64.b64decode(base).decode(self.DEFAULT_ENCODING)
             return decoded
 
@@ -41,23 +42,38 @@ class SpoilerParser(BaseScript):
             content = bz2.decompress(content)
             return content.decode(self.DEFAULT_ENCODING, errors="ignore")
 
-        subset = os.listdir(dir)
-        expected_spoiler = 0
+        url = decode_url(page_file)
+        content = read(page_file)
+        tree = html.fromstring(content)
+        listing = [
+            html.tostring(element, encoding="unicode")
+            for element in tree.cssselect("#main-article > ul > li")
+        ]
 
         results: List[Dict[str, Any]] = list()
-        for idx, page_file in enumerate(subset[:]):
-            url = decode_url(page_file)
-            self._track_message(f"{idx+1}/{len(subset)} - {url}")
-
-            content = read(os.path.join(dir, page_file))
-            tree = html.fromstring(content)
-            listing = [
-                html.tostring(element, encoding="unicode")
-                for element in tree.cssselect("#main-article > ul > li")
+        for entry in listing:
+            trope, sentences = self.parse(entry)
+            has_spoiler = any([x[0] for x in sentences])
+            results += [
+                {
+                    "page": url,
+                    "trope": trope,
+                    "has_spoiler": has_spoiler,
+                    "sentences": sentences,
+                }
             ]
-            for entry in listing:
-                trope, sentences = self.parse(entry)
-                results += [{"page": url, "trope": trope, "sentences": sentences,}]
+
+        return results
+
+    def parse_dir(self, directory: str) -> List[Dict[str, Any]]:
+        listing = [
+            os.path.join(directory, page_file) for page_file in os.listdir(directory)
+        ]
+        results: List[Dict[str, Any]] = list()
+
+        for idx, page_file in enumerate(listing[:]):
+            self._track_message(f"{idx+1}/{len(listing)}")
+            results += self.parse_file(page_file)
 
         self._finish_and_summary()
         return results
@@ -118,13 +134,13 @@ class SpoilerParser(BaseScript):
 
             i += 1
 
-        def clean_all(sentence):
+        def clean_html_tags(sentence):
             element = html.fromstring(sentence)
             str_repr = etree.tostring(element, method="text", encoding="unicode")
-            return " ".join(str_repr.split()).strip()
+            return str_repr.strip().replace("|", "")
 
-        return (
-            clean_all(trope),
-            [(tag, clean_all(sentence)) for tag, sentence in tagged_sentences],
+        x = (
+            clean_html_tags(trope),
+            [(tag, clean_html_tags(sentence)) for tag, sentence in tagged_sentences],
         )
-
+        return x

@@ -1,5 +1,6 @@
-from tvtropes.parser import SpoilerParser
 import pytest
+
+from tvtropes.parser import SpoilerParser
 
 
 @pytest.fixture(scope="session")
@@ -145,3 +146,19 @@ def test_cleaning(parser, raw_example, expected):
 def test_sentences_split(parser, example, expected):
     sentences = parser._split_into_sentences(example)
     assert sentences == expected
+
+
+def test_directory_parse(parser):
+    results = parser.parse_dir("tests/samples")
+    assert len(results) == 145
+
+    documents_with_any_spoiler = sum([x["has_spoiler"] for x in results])
+    assert documents_with_any_spoiler == 27
+
+    all_labeled_sentences = [
+        sentences for item in results for sentences in item["sentences"]
+    ]
+    spoiler_sentences = sum(
+        [is_spoiler for is_spoiler, sentence in all_labeled_sentences]
+    )
+    assert spoiler_sentences == 32

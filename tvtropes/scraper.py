@@ -7,6 +7,7 @@ from collections import OrderedDict
 from time import sleep
 
 import requests
+
 from lxml import html
 
 from .base_script import BaseScript
@@ -59,7 +60,7 @@ class TVTropesScraper(BaseScript):
     def _build_required_directories(self):
         whole_path = os.path.join(self.directory_name, self.session)
         if not os.path.isdir(whole_path):
-            self._step(f"Building directory: {whole_path}")
+            self._info(f"Building directory: {whole_path}")
             os.makedirs(whole_path)
 
     def run(self):
@@ -86,7 +87,7 @@ class TVTropesScraper(BaseScript):
         self.tropes_by_book = OrderedDict()
         sorted_books = sorted(list(self.books))
 
-        self._step(f"Found {len(sorted_books)} books")
+        self._info(f"Found {len(sorted_books)} books")
 
         for counter, book in enumerate(sorted_books):
             self._info(f"Status: {counter}/{len(sorted_books)} books")
@@ -179,7 +180,7 @@ class TVTropesScraper(BaseScript):
     def _write_result(self):
         target_file_name = self.TARGET_RESULT_FILE_TEMPLATE.format(self.session)
         file_path = os.path.join(self.directory_name, self.session, target_file_name)
-        self._step(f"Saving tropes by book into {file_path}")
+        self._info(f"Saving tropes by book into {file_path}")
         content = json.dumps(self.tropes_by_book, indent=2, sort_keys=True)
         self.byte_content = content.encode(self.DEFAULT_ENCODING)
         self._write_file(self.byte_content, file_path)
