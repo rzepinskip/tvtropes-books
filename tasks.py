@@ -28,7 +28,7 @@ def parse_tvtropes(context, cache_directory=None, session=None, output_file=None
         raise ValueError("Please, add the missing parameters!!")
 
     SpoilerParser.set_logger_file_id("parse_tvtropes", session)
-    dir = os.path.join(cache_directory, session)
-    data = SpoilerParser().parse_dir(dir)
+    directory = os.path.join(cache_directory, session)
+    data = SpoilerParser().parse_dir(directory)
     with open(output_file, "w") as f:
-        f.write(json.dumps(data, indent=4))
+        f.write("\n".join([json.dumps(line) for line in data]))
