@@ -53,15 +53,16 @@ class SpoilerParser(BaseScript):
         results: List[Dict[str, Any]] = list()
         for entry in listing:
             trope, sentences = self.parse(entry)
-            has_spoiler = any([x[0] for x in sentences])
-            results += [
-                {
-                    "page": url,
-                    "trope": trope,
-                    "has_spoiler": has_spoiler,
-                    "sentences": sentences,
-                }
-            ]
+            if len(sentences) > 0:
+                has_spoiler = any([x[0] for x in sentences])
+                results += [
+                    {
+                        "page": url,
+                        "trope": trope,
+                        "has_spoiler": has_spoiler,
+                        "sentences": sentences,
+                    }
+                ]
 
         return results
 

@@ -150,7 +150,7 @@ def test_sentences_split(parser, example, expected):
 
 def test_directory_parse(parser):
     results = parser.parse_dir("tests/samples")
-    assert len(results) == 145
+    assert len(results) == 131
 
     documents_with_any_spoiler = sum([x["has_spoiler"] for x in results])
     assert documents_with_any_spoiler == 27
