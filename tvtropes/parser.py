@@ -110,7 +110,12 @@ class SpoilerParser(BaseScript):
             cleaned_data.replace("</div>", "")
             .replace("...", ".")
             .replace("◊", "")
-            .replace(".</span>", "</span>.")
+            .replace(".</span>", "</span>.")  # fix for spacy sentencizer
+            .replace(
+                """<span class="spoiler" title="you can set spoilers visible by default on your profile">""",
+                "<s>",
+            )
+            .replace("""</span>""", "</s>")
         )
 
         sentences = self._split_into_sentences(data)
@@ -122,10 +127,10 @@ class SpoilerParser(BaseScript):
         while i < len(data):
             if data[i] == "<":
                 if data[i + 1] == "/":
-                    i = i + len("""</span>""")
+                    i = i + len("<s>")
                     status = SpoilerStatus.CLOSED_NOTUSED
                 else:
-                    i = i + len("""<span class="spoiler" title="x">""")
+                    i = i + len("</s>")
                     status = SpoilerStatus.OPEN
                 continue
 
@@ -142,13 +147,11 @@ class SpoilerParser(BaseScript):
 
             i += 1
 
-        def clean_html_tags(sentence):
-            element = html.fromstring(sentence)
-            str_repr = etree.tostring(element, method="text", encoding="unicode")
-            return str_repr.strip().replace("|", "")
+        def clean_output(sentence):
+            return sentence.replace("<s>", "").replace("</s>", "").replace("|", "")
 
         x = (
-            clean_html_tags(trope),
-            [(tag, clean_html_tags(sentence)) for tag, sentence in tagged_sentences],
+            trope,
+            [(tag, clean_output(sentence)) for tag, sentence in tagged_sentences],
         )
         return x

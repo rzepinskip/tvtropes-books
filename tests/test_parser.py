@@ -49,7 +49,7 @@ def parser():
         (
             """<li><a class="twikilink" href="https://tvtropes.org/pmwiki/pmwiki.php/Main/FaceHeelTurn" title="https://tvtropes.org/pmwiki/pmwiki.php/Main/FaceHeelTurn">Face–Heel Turn</a>: Selenia and eventually <span class="spoiler" title="you can set spoilers visible by default on your profile">Crovax</span>.<ul><li> <a class="twikilink" href="https://tvtropes.org/pmwiki/pmwiki.php/Main/FaceMonsterTurn" title="https://tvtropes.org/pmwiki/pmwiki.php/Main/FaceMonsterTurn">Face–Monster Turn</a>: Selenia is this, though exactly <em>how</em> it happens is unknown. She callously lets Vhati il-Dal fall to his death, leads the Phyrexians to the Weatherlight and attacks the heroes in the Stronghold, but at the last she shows notable reluctance, crying as she fights Crovax.</li>
             """,
-            [True, False, False],
+            [False, False],
         ),
         (
             """<li><a class="twikilink" href="https://tvtropes.org/pmwiki/pmwiki.php/Main/HeroicSacrifice" title="https://tvtropes.org/pmwiki/pmwiki.php/Main/HeroicSacrifice">Heroic Sacrifice</a>: <span class="spoiler" title="you can set spoilers visible by default on your profile"> Mirri</span> dies in battle with <span class="spoiler" title="you can set spoilers visible by default on your profile">Crovax</span> to protect <span class="spoiler" title="you can set spoilers visible by default on your profile">Gerrard</span>.
@@ -59,7 +59,7 @@ def parser():
         (
             """<lit><a class="twikilink" href="https://tvtropes.org/pmwiki/pmwiki.php/Main/IWantMyBelovedToBeHappy" title="https://tvtropes.org/pmwiki/pmwiki.php/Main/IWantMyBelovedToBeHappy">I Want My Beloved to Be Happy</a>: <span class="spoiler" title="you can set spoilers visible by default on your profile"> Mirri</span>.
         """,
-            [True],
+            [],
         ),
         (
             """<li><a class="twikilink" href="https://tvtropes.org/pmwiki/pmwiki.php/Main/JustFriends" title="https://tvtropes.org/pmwiki/pmwiki.php/Main/JustFriends">Just Friends</a>: Mirri's Tale reveals that <span class="spoiler" title="you can set spoilers visible by default on your profile">Gerrard feels this way about Mirri, feeling that they are <a class="twikilink" href="https://tvtropes.org/pmwiki/pmwiki.php/Main/LikeBrotherAndSister" title="https://tvtropes.org/pmwiki/pmwiki.php/Main/LikeBrotherAndSister">Like Brother and Sister</a> and that he cannot reciprocate their love because they are too different</span>.
