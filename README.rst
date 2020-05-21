@@ -12,7 +12,7 @@ Usage
 
 2. Prase downloaded HTML documents::
 
-    invoke parse-tvtropes --cache-directory data/scraper/cache/ --session 20190502
+    invoke parse-tvtropes --cache-directory data/scraper/cache/ --session 20190502 --output-file output.jsonl
 
 
 Installation

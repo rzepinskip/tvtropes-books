@@ -120,13 +120,13 @@ def parser():
 )
 def test_cleaning(parser, raw_example, expected):
     _, sentences = parser.parse(raw_example)
-    results = [tag for tag, _ in sentences]
+    results = [tag for tag, _, _ in sentences]
     if results != expected:
         raw_example = raw_example.replace("\n", "")
         print(f"RAW: {raw_example}")
-        cleaned_example = " ".join([sentence for _, sentence in sentences])
+        cleaned_example = " ".join([sentence for _, sentence, _ in sentences])
         print(f"CLEANED: {cleaned_example}\n")
-        for tag, sentence in sentences:
+        for tag, sentence, _ in sentences:
             if tag:
                 print(f"SPOILER: {sentence}")
             else:
@@ -159,6 +159,6 @@ def test_directory_parse(parser):
         sentences for item in results for sentences in item["sentences"]
     ]
     spoiler_sentences = sum(
-        [is_spoiler for is_spoiler, sentence in all_labeled_sentences]
+        [is_spoiler for is_spoiler, sentence, _ in all_labeled_sentences]
     )
-    assert spoiler_sentences == 32
+    assert spoiler_sentences == 33

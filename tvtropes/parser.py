@@ -100,58 +100,72 @@ class SpoilerParser(BaseScript):
 
         return output
 
-    def parse(self, raw_data: str) -> Tuple[str, List[Tuple[bool, str]]]:
+    def parse(self, raw_data: str) -> Tuple[str, List[Tuple[bool, str, List[bool]]]]:
         raw_data = Cleaner(kill_tags=["div"]).clean_html(raw_data)
         cleaned_data = self.before_cleaner.clean_html(f"<div>{raw_data}</div>")
         colon_idx = cleaned_data.find(":")
-        trope = cleaned_data[:colon_idx]
+        trope = cleaned_data[:colon_idx].replace("<div>", "")
         cleaned_data = cleaned_data[colon_idx + 1 :]
         data = (
-            cleaned_data.replace("</div>", "")
+            cleaned_data.replace("<div>", "")
+            .replace("</div>", "")
             .replace("...", ".")
             .replace("◊", "")
             .replace(".</span>", "</span>.")  # fix for spacy sentencizer
             .replace(
                 """<span class="spoiler" title="you can set spoilers visible by default on your profile">""",
-                "<s>",
+                " <s> ",
             )
-            .replace("""</span>""", "</s>")
+            .replace("""</span>""", " </s> ")
         )
 
         sentences = self._split_into_sentences(data)
-        data = "|".join(sentences)
+        if len(sentences) == 0:
+            return (trope, list())
+
+        data = " | ".join(sentences) + " | "
+        words = data.split()
+
+        operator_chars = {"<s>", "</s>", "|"}
 
         tagged_sentences = list()
-        i, start = 0, 0
+        word_tags: List[bool] = list()
+        current_sentence_start = 0
         status = SpoilerStatus.CLOSED
-        while i < len(data):
-            if data[i] == "<":
-                if data[i + 1] == "/":
-                    i = i + len("<s>")
+        for i in range(len(words)):
+            current_word = words[i].strip()
+            if current_word in operator_chars:
+                if current_word == "</s>":
                     status = SpoilerStatus.CLOSED_NOTUSED
-                else:
-                    i = i + len("</s>")
+                elif current_word == "<s>":
                     status = SpoilerStatus.OPEN
-                continue
+                elif current_word == "|":
+                    if status is SpoilerStatus.CLOSED:
+                        tag = False
+                    elif status is SpoilerStatus.OPEN:
+                        tag = True
+                    elif status is SpoilerStatus.CLOSED_NOTUSED:
+                        tag = True
+                        status = SpoilerStatus.CLOSED
 
-            if data[i] == "|" or i == len(data) - 1:
-                if status is SpoilerStatus.CLOSED:
-                    tag = False
-                elif status is SpoilerStatus.OPEN:
-                    tag = True
-                elif status is SpoilerStatus.CLOSED_NOTUSED:
-                    tag = True
-                    status = SpoilerStatus.CLOSED
-                tagged_sentences.append((tag, data[start : i + 1]))
-                start = i + 1
+                    proper_words = [
+                        x
+                        for x in words[current_sentence_start:i]
+                        if x not in operator_chars
+                    ]
 
-            i += 1
+                    if proper_words[-1] == ".":
+                        proper_words = proper_words[:-1]
+                        proper_words[-1] = proper_words[-1] + "."
+                        word_tags = word_tags[:-1]
 
-        def clean_output(sentence):
-            return sentence.replace("<s>", "").replace("</s>", "").replace("|", "")
+                    assert len(proper_words) == len(word_tags)
+                    sentence = " ".join(proper_words)
+                    tagged_sentences.append((tag, sentence, word_tags if tag else []))
 
-        x = (
-            trope,
-            [(tag, clean_output(sentence)) for tag, sentence in tagged_sentences],
-        )
-        return x
+                    current_sentence_start = i + 1
+                    word_tags = list()
+            else:
+                word_tags += [True if status == SpoilerStatus.OPEN else False]
+
+        return (trope, tagged_sentences)
