@@ -148,6 +148,24 @@ def test_sentences_split(parser, example, expected):
     assert sentences == expected
 
 
+@pytest.mark.parametrize(
+    "example, expected",
+    [
+        (
+            (
+                "Alan Wayne killed John Conwey at the start.".split(),
+                [True, True, False, True, True, False, False, False],
+            ),
+            [(0, 10), (18, 29)],
+        ),
+        (("Alan Wayne is dead.".split(), [True, True, True, True]), [(0, 19)]),
+    ],
+)
+def test_tags_indices(parser, example, expected):
+    indices = parser._tags_to_indices(example[0], example[1])
+    assert indices == expected
+
+
 def test_directory_parse(parser):
     results = parser.parse_dir("tests/samples")
     assert len(results) == 131

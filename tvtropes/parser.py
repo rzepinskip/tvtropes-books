@@ -2,7 +2,7 @@ import base64
 import bz2
 import os
 from enum import Enum
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import en_core_web_sm
 import spacy
@@ -100,11 +100,34 @@ class SpoilerParser(BaseScript):
 
         return output
 
-    def parse(self, raw_data: str) -> Tuple[str, List[Tuple[bool, str, List[bool]]]]:
+    def _tags_to_indices(
+        self, sentence_words: List[str], word_tags: List[bool]
+    ) -> List[Tuple[int, int]]:
+        i = 0
+        spoiler_start: Optional[int] = None
+        indices: List[Tuple[int, int]] = list()
+        for word_index, word_tag_pair in enumerate(zip(sentence_words, word_tags)):
+            word, tag = word_tag_pair
+            if tag is True and spoiler_start is None:
+                spoiler_start = i
+            elif tag is False and spoiler_start is not None:
+                indices += [(spoiler_start, i - 1)]
+                spoiler_start = None
+            elif tag is True and word_index == len(word_tags) - 1:
+                indices += [(spoiler_start, i + len(word))]
+                spoiler_start = None
+
+            i += len(word) + 1
+
+        return indices
+
+    def parse(
+        self, raw_data: str
+    ) -> Tuple[str, List[Tuple[bool, str, List[Tuple[int, int]]]]]:
         raw_data = Cleaner(kill_tags=["div"]).clean_html(raw_data)
         cleaned_data = self.before_cleaner.clean_html(f"<div>{raw_data}</div>")
         colon_idx = cleaned_data.find(":")
-        trope = cleaned_data[:colon_idx].replace("<div>", "")
+        trope = cleaned_data[:colon_idx].replace("<div>", "").strip()
         cleaned_data = cleaned_data[colon_idx + 1 :]
         data = (
             cleaned_data.replace("<div>", "")
@@ -130,7 +153,7 @@ class SpoilerParser(BaseScript):
 
         tagged_sentences = list()
         word_tags: List[bool] = list()
-        current_sentence_start = 0
+        sentence_start = 0
         status = SpoilerStatus.CLOSED
         for i in range(len(words)):
             current_word = words[i].strip()
@@ -149,9 +172,7 @@ class SpoilerParser(BaseScript):
                         status = SpoilerStatus.CLOSED
 
                     proper_words = [
-                        x
-                        for x in words[current_sentence_start:i]
-                        if x not in operator_chars
+                        x for x in words[sentence_start:i] if x not in operator_chars
                     ]
 
                     if proper_words[-1] == ".":
@@ -159,11 +180,11 @@ class SpoilerParser(BaseScript):
                         proper_words[-1] = proper_words[-1] + "."
                         word_tags = word_tags[:-1]
 
-                    assert len(proper_words) == len(word_tags)
+                    spoiler_indices = self._tags_to_indices(proper_words, word_tags)
                     sentence = " ".join(proper_words)
-                    tagged_sentences.append((tag, sentence, word_tags if tag else []))
+                    tagged_sentences.append((tag, sentence, spoiler_indices))
 
-                    current_sentence_start = i + 1
+                    sentence_start = i + 1
                     word_tags = list()
             else:
                 word_tags += [True if status == SpoilerStatus.OPEN else False]
