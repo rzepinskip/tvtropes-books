@@ -27,7 +27,6 @@ class SpoilerParser(BaseScript):
         self.before_cleaner = Cleaner(
             allow_tags=["span", "div"], remove_unknown_tags=False, kill_tags=[]
         )
-
         sentencizer = English()
         sentencizer.add_pipe(sentencizer.create_pipe("sentencizer"))
         self._sentencizer = sentencizer
@@ -117,7 +116,8 @@ class SpoilerParser(BaseScript):
             elif tag is False and spoiler_start is not None:
                 indices += [(spoiler_start, i - 1)]
                 spoiler_start = None
-            elif tag is True and word_index == len(word_tags) - 1:
+
+            if tag is True and word_index == len(word_tags) - 1:
                 indices += [(spoiler_start, i + len(word))]
                 spoiler_start = None
 
@@ -130,12 +130,12 @@ class SpoilerParser(BaseScript):
     ) -> Tuple[str, List[Tuple[bool, str, List[Tuple[int, int]]]]]:
         raw_data = Cleaner(kill_tags=["div"]).clean_html(raw_data)
         cleaned_data = self.before_cleaner.clean_html(f"<div>{raw_data}</div>")
-        colon_idx = cleaned_data.find(":")
-        trope = cleaned_data[:colon_idx].replace("<div>", "").strip()
-        cleaned_data = cleaned_data[colon_idx + 1 :]
-        data = (
+
+        cleaned_data = (
             cleaned_data.replace("<div>", "")
             .replace("</div>", "")
+            .replace("""<span style="display:none">invoked</span>""", "")
+            .replace("""<span>invoked</span>""", "")
             .replace("...", ".")
             .replace("◊", "")
             .replace(".</span>", "</span>.")  # fix for spacy sentencizer
@@ -146,7 +146,16 @@ class SpoilerParser(BaseScript):
             .replace("""</span>""", " </s> ")
         )
 
-        sentences = self._split_into_sentences(data)
+        colon_idx = cleaned_data.find(":")
+        trope = cleaned_data[:colon_idx].replace("<div>", "")
+        sentences_data = cleaned_data[colon_idx + 1 :]
+
+        if "<s>" in trope:
+            trope = trope.replace("<s>", "")
+            sentences_data = "<s>" + sentences_data
+        trope = trope.strip()
+
+        sentences = self._split_into_sentences(sentences_data)
         if len(sentences) == 0:
             return (trope, list())
 
@@ -157,7 +166,7 @@ class SpoilerParser(BaseScript):
             word_tags: List[bool] = list()
             proper_words: List[str] = list()
             for word in words:
-                if word == "</s>":
+                if word == "</s>" and status == SpoilerStatus.OPEN:
                     status = SpoilerStatus.CLOSED_NOTUSED
                 elif word == "<s>":
                     status = SpoilerStatus.OPEN
@@ -173,7 +182,7 @@ class SpoilerParser(BaseScript):
                 tag = True
                 status = SpoilerStatus.CLOSED
 
-            if len(proper_words) == 0:
+            if len(proper_words) == 0 or proper_words[0] == ".":
                 continue
 
             if proper_words[-1] == ".":
@@ -183,8 +192,12 @@ class SpoilerParser(BaseScript):
 
             sentence = " ".join(proper_words)
 
-            if self._is_valid_sentence(sentence):
-                spoiler_indices = self._tags_to_indices(proper_words, word_tags)
+            spoiler_indices = self._tags_to_indices(proper_words, word_tags)
+            if (
+                self._is_valid_sentence(sentence)
+                and not (tag == True and len(spoiler_indices) == 0)
+                and 'class="notelabel"' not in sentence
+            ):
                 tagged_sentences.append((tag, sentence, spoiler_indices))
 
         return (trope, tagged_sentences)

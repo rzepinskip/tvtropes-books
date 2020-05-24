@@ -136,7 +136,10 @@ def test_cleaning(parser, raw_example, expected):
 
 @pytest.mark.parametrize(
     "example, expected",
-    [("He killed her. Eddie was a hero.", ["He killed her.", "Eddie was a hero."]),],
+    [
+        ("He killed her. Eddie was a hero.", ["He killed her.", "Eddie was a hero."]),
+        ("He, in fact, was a Mr. Monroe.", ["He, in fact, was a Mr. Monroe."]),
+    ],
 )
 def test_sentences_split(parser, example, expected):
     sentences = parser._split_into_sentences(example)
@@ -145,7 +148,12 @@ def test_sentences_split(parser, example, expected):
 
 @pytest.mark.parametrize(
     "example, expected",
-    [("There was no help.", True), ("Eddie.", False), ("Dies", False),],
+    [
+        ("There was no help.", True),
+        ("Eddie.", False),
+        ("Dies", False),
+        ("Subverted.", True),  # Not sure about that
+    ],
 )
 def test_sentence_filtering(parser, example, expected):
     is_valid = parser._is_valid_sentence(example)
@@ -157,16 +165,19 @@ def test_sentence_filtering(parser, example, expected):
     [
         (
             (
-                "Alan Wayne killed John Conwey at the start.".split(),
+                "Alan Wayne killed John Conwey at the start.",
                 [True, True, False, True, True, False, False, False],
             ),
             [(0, 10), (18, 29)],
         ),
-        (("Alan Wayne is dead.".split(), [True, True, True, True]), [(0, 19)]),
+        (("Alan Wayne is dead.", [True, True, True, True]), [(0, 19)]),
+        (("Alan Wayne is John.", [False, False, False, True]), [(14, 19)],),
+        (("John.", [True]), [(0, 5)],),
     ],
 )
 def test_tags_indices(parser, example, expected):
-    indices = parser._tags_to_indices(example[0], example[1])
+    sentence, tags = example
+    indices = parser._tags_to_indices(sentence.split(), tags)
     assert indices == expected
 
 
@@ -183,7 +194,7 @@ def test_directory_parse(parser):
     spoiler_sentences = sum(
         [is_spoiler for is_spoiler, sentence, _ in all_labeled_sentences]
     )
-    assert spoiler_sentences == 33
+    assert spoiler_sentences == 32
 
 
 def test_filtering_out_spoiler_start(parser):
@@ -196,3 +207,31 @@ def test_filtering_out_spoiler_start(parser):
 
     spoiler_indices = sentence[2][0]
     assert spoiler_indices[1] == len(sentence[1])
+
+
+def test_span_invoked_1(parser):
+    raw_example = """<a class="twikilink" href="/pmwiki/pmwiki.php/Main/WhatDoYouMeanItsForKids" title="/pmwiki/pmwiki.php/Main/WhatDoYouMeanItsForKids">What Do You Mean, It's for Kids?</a>: <span style="display:none">invoked</span> The <em>Istorii Sankt'ya</em> is a book of religious stories for children which contains extremely graphic illustrations of saints being martyred."""
+    trope, sentences = parser.parse(raw_example)
+    assert len(sentences) == 1
+    assert sentences[0][0] == False
+
+
+def test_span_invoked_2(parser):
+    raw_example = """<li> <a class="twikilink" href="/pmwiki/pmwiki.php/Main/GettingCrapPastTheRadar" title="/pmwiki/pmwiki.php/Main/GettingCrapPastTheRadar">Getting Crap Past the Radar</a>: <span style="display:none">invoked</span> In at least one book, Wally describes how lazy his older brothers are to the point that Wally surmises that they don't even leave the couch to go to the bathroom. It's after this observation that Wally then recalls seeing a garden hose going from said couch to the bathroom. <a class="twikilink" href="/pmwiki/pmwiki.php/Main/Squick" title="/pmwiki/pmwiki.php/Main/Squick">Try not to think too hard about the implications of that.</a></li>"""
+    trope, sentences = parser.parse(raw_example)
+    assert len(sentences) == 3
+    assert all([not is_spoiler for is_spoiler, _, _ in sentences])
+
+
+def test_spoiler_in_trope(parser):
+    raw_example = """<span class="spoiler" title="you can set spoilers visible by default on your profile"><a class="twikilink" href="/pmwiki/pmwiki.php/Main/DownerEnding" title="/pmwiki/pmwiki.php/Main/DownerEnding">Downer Ending</a>: The <a class="twikilink" href="/pmwiki/pmwiki.php/Main/DeusExMachina" title="/pmwiki/pmwiki.php/Main/DeusExMachina">Deus ex Machina</a> is not present in the film version and it's strongly implied that the two protagonists die by drowning.</span>"""
+    trope, sentences = parser.parse(raw_example)
+    assert len(sentences) == 1
+    assert len(sentences[0][2]) == 1
+
+
+def test_span_notelabel(parser):
+    raw_example = """<li> <a class="twikilink" href="/pmwiki/pmwiki.php/Main/TheAlcoholic" title="/pmwiki/pmwiki.php/Main/TheAlcoholic">The Alcoholic</a>: August used to be one and struggles to keep that vice in his past.<span class="notelabel" onclick="togglenote('note0khrd');" style="cursor: pointer;"><sup>*&nbsp;</sup></span><span id="note0khrd" class="inlinefolder font-s" isnote="true" onclick="togglenote('note0khrd');" style="display: none; cursor: pointer;">Disregarding a couple of <a class="twikilink" href="/pmwiki/pmwiki.php/Main/SeriesContinuityError" title="/pmwiki/pmwiki.php/Main/SeriesContinuityError">continuity errors</a> in the early chapters.</span> So he's picked up a <a class="twikilink" href="/pmwiki/pmwiki.php/Main/MustHaveNicotine" title="/pmwiki/pmwiki.php/Main/MustHaveNicotine">different habit</a> to use as an emotional crutch instead.</li>"""
+    trope, sentences = parser.parse(raw_example)
+    assert len(sentences) == 1
+    assert all([not is_spoiler for is_spoiler, _, _ in sentences])
