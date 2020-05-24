@@ -136,16 +136,20 @@ def test_cleaning(parser, raw_example, expected):
 
 @pytest.mark.parametrize(
     "example, expected",
-    [
-        ("He killed her. Eddie was a hero.", ["He killed her.", "Eddie was a hero."]),
-        ("Cat. There was no help.", ["There was no help."]),
-        ("Eddie. Maggie.", []),
-        ("Dies", []),
-    ],
+    [("He killed her. Eddie was a hero.", ["He killed her.", "Eddie was a hero."]),],
 )
 def test_sentences_split(parser, example, expected):
     sentences = parser._split_into_sentences(example)
     assert sentences == expected
+
+
+@pytest.mark.parametrize(
+    "example, expected",
+    [("There was no help.", True), ("Eddie.", False), ("Dies", False),],
+)
+def test_sentence_filtering(parser, example, expected):
+    is_valid = parser._is_valid_sentence(example)
+    assert is_valid == expected
 
 
 @pytest.mark.parametrize(
@@ -180,3 +184,15 @@ def test_directory_parse(parser):
         [is_spoiler for is_spoiler, sentence, _ in all_labeled_sentences]
     )
     assert spoiler_sentences == 33
+
+
+def test_filtering_out_spoiler_start(parser):
+    raw_example = """<li> <a class="twikilink" href="/pmwiki/pmwiki.php/Main/EmergencyImpersonation" title="/pmwiki/pmwiki.php/Main/EmergencyImpersonation">Emergency Impersonation</a>: <span class="spoiler" title="you can set spoilers visible by default on your profile"> Forge, for Elden. This involves putting a fake birthmark on him, which makes the resemblance close enough to trigger Amber's imprint.</span></li>"""
+    trope, sentences = parser.parse(raw_example)
+    assert len(sentences) == 1
+
+    sentence = sentences[0]
+    assert len(sentence[2]) == 1
+
+    spoiler_indices = sentence[2][0]
+    assert spoiler_indices[1] == len(sentence[1])

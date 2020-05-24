@@ -27,8 +27,12 @@ class SpoilerParser(BaseScript):
         self.before_cleaner = Cleaner(
             allow_tags=["span", "div"], remove_unknown_tags=False, kill_tags=[]
         )
-        self._nlp = en_core_web_sm.load(disable=["parser", "ner"])
-        self._nlp.add_pipe(self._nlp.create_pipe("sentencizer"))
+
+        sentencizer = English()
+        sentencizer.add_pipe(sentencizer.create_pipe("sentencizer"))
+        self._sentencizer = sentencizer
+
+        self._tagger = en_core_web_sm.load(disable=["parser", "ner"])
 
     def decode_url(self, file_name):
         base = os.path.basename(file_name).replace(".html.bz2", "")
@@ -86,19 +90,19 @@ class SpoilerParser(BaseScript):
         self._finish_and_summary()
         return results
 
-    def _split_into_sentences(self, text: str):
-        doc = self._nlp(text)
-        output = []
-        for sentence in doc.sents:
-            if len(sentence) == 0:
-                continue
+    def _is_valid_sentence(self, sentence: str) -> bool:
+        tagged_sentence = self._tagger(sentence)
 
-            for token in sentence:
-                if token.pos_ == "VERB" or token.pos_ == "AUX":
-                    output.append(sentence.string.strip())
-                    break
+        for token in tagged_sentence:
+            if token.pos_ == "VERB" or token.pos_ == "AUX":
+                return True
 
-        return output
+        return False
+
+    def _split_into_sentences(self, text: str) -> List[str]:
+        doc = self._sentencizer(text)
+        sentences = [sentence.string.strip() for sentence in doc.sents]
+        return [sentence for sentence in sentences if len(sentence) > 0]
 
     def _tags_to_indices(
         self, sentence_words: List[str], word_tags: List[bool]
@@ -146,47 +150,41 @@ class SpoilerParser(BaseScript):
         if len(sentences) == 0:
             return (trope, list())
 
-        data = " | ".join(sentences) + " | "
-        words = data.split()
-
-        operator_chars = {"<s>", "</s>", "|"}
-
         tagged_sentences = list()
-        word_tags: List[bool] = list()
-        sentence_start = 0
         status = SpoilerStatus.CLOSED
-        for i in range(len(words)):
-            current_word = words[i].strip()
-            if current_word in operator_chars:
-                if current_word == "</s>":
+        for sentence in sentences:
+            words = [x.strip() for x in sentence.split()]
+            word_tags: List[bool] = list()
+            proper_words: List[str] = list()
+            for word in words:
+                if word == "</s>":
                     status = SpoilerStatus.CLOSED_NOTUSED
-                elif current_word == "<s>":
+                elif word == "<s>":
                     status = SpoilerStatus.OPEN
-                elif current_word == "|":
-                    if status is SpoilerStatus.CLOSED:
-                        tag = False
-                    elif status is SpoilerStatus.OPEN:
-                        tag = True
-                    elif status is SpoilerStatus.CLOSED_NOTUSED:
-                        tag = True
-                        status = SpoilerStatus.CLOSED
+                else:
+                    proper_words += [word]
+                    word_tags += [True if status == SpoilerStatus.OPEN else False]
 
-                    proper_words = [
-                        x for x in words[sentence_start:i] if x not in operator_chars
-                    ]
+            if status is SpoilerStatus.CLOSED:
+                tag = False
+            elif status is SpoilerStatus.OPEN:
+                tag = True
+            elif status is SpoilerStatus.CLOSED_NOTUSED:
+                tag = True
+                status = SpoilerStatus.CLOSED
 
-                    if proper_words[-1] == ".":
-                        proper_words = proper_words[:-1]
-                        proper_words[-1] = proper_words[-1] + "."
-                        word_tags = word_tags[:-1]
+            if len(proper_words) == 0:
+                continue
 
-                    spoiler_indices = self._tags_to_indices(proper_words, word_tags)
-                    sentence = " ".join(proper_words)
-                    tagged_sentences.append((tag, sentence, spoiler_indices))
+            if proper_words[-1] == ".":
+                proper_words = proper_words[:-1]
+                proper_words[-1] = proper_words[-1] + "."
+                word_tags = word_tags[:-1]
 
-                    sentence_start = i + 1
-                    word_tags = list()
-            else:
-                word_tags += [True if status == SpoilerStatus.OPEN else False]
+            sentence = " ".join(proper_words)
+
+            if self._is_valid_sentence(sentence):
+                spoiler_indices = self._tags_to_indices(proper_words, word_tags)
+                tagged_sentences.append((tag, sentence, spoiler_indices))
 
         return (trope, tagged_sentences)
